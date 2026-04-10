@@ -1,0 +1,8 @@
+{
+  "entry_mode": "fullpage",
+  "project_type": "dynamic",
+  "page_slug": "outsourcing-scorecard",
+  "plugin_prefix": "osc",
+  "cf7_integration": true,
+  "flamingo_channel": "Outsourcing Scorecard"
+}
