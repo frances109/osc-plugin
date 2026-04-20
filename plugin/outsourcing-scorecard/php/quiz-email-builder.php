@@ -12,7 +12,8 @@
  *   osc_send_cta_email()    — contact-details-only email to admin (CTA clicks)
  *
  * All recipient addresses come from WP options (Settings → Outsourcing Scorecard):
- *   osc_admin_to, osc_admin_cc, osc_admin_reply_to, osc_user_cc
+ *   osc_admin_to, osc_admin_cc
+ *   (Reply-To always uses the submitter's email; no separate setting needed.)
  *
  * Outlook compatibility rules applied throughout:
  *   - No rgba() — all colours are solid hex on the dark background
@@ -165,10 +166,11 @@ function osc_send_admin_email(
     string $tier, int $score, array $answers
 ): bool {
 
-    $to_list = osc_split_addresses( get_option( 'osc_admin_to', get_option( 'admin_email' ) ) );
+    $to_list = osc_split_addresses( osc_get_setting( 'osc_admin_to', get_option( 'admin_email' ) ) );
     if ( empty( $to_list ) ) return false;
 
-    $reply_to = trim( get_option( 'osc_admin_reply_to', '' ) ) ?: $email;
+    // Reply-To always uses the submitter's email so admins can reply directly to the lead.
+    $reply_to = $email;
     $subject  = "New Outsourcing Assessment — {$fullname} ({$company})";
 
     $labels       = osc_field_labels();
@@ -430,12 +432,12 @@ function osc_send_user_email(
     // Send to submitter
     $user_sent = wp_mail(
         $email, $subject, $body,
-        osc_build_headers( $email, get_option( 'osc_user_cc', '' ) ),
+        osc_build_headers( $email ),
         $attachments
     );
 
     // Copy to admin list (Reply-To → submitter so admin can reply to the lead)
-    $admin_list = osc_split_addresses( get_option( 'osc_admin_to', get_option( 'admin_email' ) ) );
+    $admin_list = osc_split_addresses( osc_get_setting( 'osc_admin_to', get_option( 'admin_email' ) ) );
     $admin_to   = array_values( array_filter( $admin_list, fn( $a ) =>
         strtolower( trim( $a ) ) !== strtolower( trim( $email ) )
     ) );
@@ -463,7 +465,7 @@ function osc_send_cta_email(
     string $company, string $tier, string $cta_action
 ): bool {
 
-    $to_list = osc_split_addresses( get_option( 'osc_admin_to', get_option( 'admin_email' ) ) );
+    $to_list = osc_split_addresses( osc_get_setting( 'osc_admin_to', get_option( 'admin_email' ) ) );
     if ( empty( $to_list ) ) return false;
 
     $subject   = $cta_action === 'schedule' ? 'Request for a Discovery Call' : "Consultation for {$tier}";
