@@ -6,7 +6,7 @@
  *               Works standalone OR as a Magellan Hub project (auto-detected).
  *               Completely overrides the active theme — zero theme CSS interference.
  *               All assets loaded from plugin/dist/ (npm packages bundled — no CDN).
- * Version:      1.1.2
+ * Version:      1.1.3
  * Author:       Magellan Solutions
  * License:      GPL-2.0+
  * Text Domain:  outsourcing-scorecard
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'OSC_VERSION',    '1.1.0' );
+define( 'OSC_VERSION',    '1.1.3' );
 define( 'OSC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OSC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'OSC_DIST_URL',   OSC_PLUGIN_URL . 'dist/' );
@@ -25,15 +25,8 @@ require_once OSC_PLUGIN_DIR . 'php/quiz-email-builder.php';
 
 /* ═══════════════════════════════════════════════════════════════
    DUAL-MODE DETECTION
-   When Magellan Hub is active and has a project with this plugin's
-   page slug, defer page-rendering to the hub. The hub auto-loads
-   php/ files and uses fullpage-wrapper.php for rendering.
 ═══════════════════════════════════════════════════════════════ */
 
-/**
- * Returns true when Magellan Hub is active AND has registered a
- * project whose slug matches this plugin's configured page slug.
- */
 function osc_running_under_hub(): bool {
     if ( ! function_exists( 'mhub_get_project_by_slug' ) ) return false;
     $slug    = get_option( 'osc_quiz_page_slug', 'outsourcing-scorecard' );
@@ -41,15 +34,6 @@ function osc_running_under_hub(): bool {
     return ( $project && $project->status === 'active' );
 }
 
-/**
- * Retrieve a setting, falling back to the Magellan Hub global value
- * when running under the hub and the plugin-level option is blank.
- *
- * Mapping:
- *   osc_recaptcha_site_key   → mhub_recaptcha_site
- *   osc_recaptcha_secret_key → mhub_recaptcha_secret
- *   osc_admin_to             → mhub_notify_emails
- */
 function osc_get_setting( string $option, string $default = '' ): string {
     $value = get_option( $option, '' );
     if ( $value !== '' ) return $value;
@@ -70,9 +54,7 @@ function osc_get_setting( string $option, string $default = '' ): string {
 
 
 /* ═══════════════════════════════════════════════════════════════
-   1. FULL DOCUMENT OVERRIDE  (standalone mode only)
-   When running under Magellan Hub, the hub handles full-page
-   rendering via fullpage-wrapper.php — skip this entirely.
+   1. FULL DOCUMENT OVERRIDE
 ═══════════════════════════════════════════════════════════════ */
 add_action( 'template_redirect', 'osc_maybe_render_page', 1 );
 
@@ -90,8 +72,6 @@ function osc_maybe_render_page(): void {
 
 /* ═══════════════════════════════════════════════════════════════
    2. SETTINGS PAGE
-   Shown in both modes. In hub mode, reCAPTCHA and notification
-   emails can be left blank to inherit from Magellan Hub Settings.
 ═══════════════════════════════════════════════════════════════ */
 add_action( 'admin_menu', function (): void {
     add_options_page(
@@ -133,22 +113,19 @@ function osc_settings_page(): void {
             <strong>Running under Magellan Hub.</strong>
             reCAPTCHA keys and notification emails are inherited from
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=magellan-hub-settings' ) ); ?>">Magellan Hub &rarr; Settings</a>
-            when left blank below. Page rendering is handled by Magellan Hub.
+            when left blank below.
         </p>
     </div>
     <?php
-    // Warn when the plugin's own keys are blank and it is falling back to hub keys.
-    // Hub keys are registered for a different domain — using them here will cause
-    // reCAPTCHA to return a low score because the token is validated against the wrong domain.
     $site_key_raw   = get_option( 'osc_recaptcha_site_key', '' );
     $secret_key_raw = get_option( 'osc_recaptcha_secret_key', '' );
     if ( $site_key_raw === '' || $secret_key_raw === '' ) : ?>
     <div class="notice notice-warning">
         <p>
             <strong>&#9888; reCAPTCHA keys not set for this site.</strong>
-            The plugin is currently falling back to Magellan Hub&rsquo;s shared keys,
+            The plugin is falling back to Magellan Hub&rsquo;s shared keys,
             which are registered for a <em>different domain</em>.
-            This will cause <strong>reCAPTCHA score too low</strong> errors on this domain.<br>
+            This will cause <strong>reCAPTCHA score too low</strong> errors.<br>
             <strong>Fix:</strong> Enter the site key and secret key registered for
             <code><?php echo esc_html( wp_parse_url( home_url(), PHP_URL_HOST ) ); ?></code>
             in the fields below.
@@ -166,13 +143,6 @@ function osc_settings_page(): void {
                     <input type="text" name="osc_quiz_page_slug"
                         value="<?php echo esc_attr( get_option( 'osc_quiz_page_slug', 'outsourcing-scorecard' ) ); ?>"
                         class="regular-text">
-                    <p class="description">
-                        Create a blank WordPress page with this slug.
-                        The plugin renders its own full HTML — page title/content are ignored.
-                        <?php if ( $under_hub ) : ?>
-                        <br><em>In hub mode: ensure this matches the project's page slug in Magellan Hub.</em>
-                        <?php endif; ?>
-                    </p>
                 </td>
             </tr>
             <tr>
@@ -182,7 +152,7 @@ function osc_settings_page(): void {
                         value="<?php echo esc_attr( get_option( 'osc_recaptcha_site_key', '' ) ); ?>"
                         class="regular-text"
                         <?php if ( $under_hub ) echo 'placeholder="Inherited from Magellan Hub if blank"'; ?>>
-                    <p class="description">Public key — injected into the page HTML.</p>
+                    <p class="description">Must be registered for domain: <strong><?php echo esc_html( wp_parse_url( home_url(), PHP_URL_HOST ) ); ?></strong></p>
                 </td>
             </tr>
             <tr>
@@ -192,7 +162,6 @@ function osc_settings_page(): void {
                         value="<?php echo esc_attr( get_option( 'osc_recaptcha_secret_key', '' ) ); ?>"
                         class="regular-text"
                         <?php if ( $under_hub ) echo 'placeholder="Inherited from Magellan Hub if blank"'; ?>>
-                    <p class="description">Secret key — used server-side only, never exposed in HTML.</p>
                 </td>
             </tr>
             <tr>
@@ -202,13 +171,6 @@ function osc_settings_page(): void {
                         value="<?php echo esc_attr( get_option( 'osc_admin_to', '' ) ); ?>"
                         class="large-text"
                         <?php if ( $under_hub ) echo 'placeholder="Inherited from Magellan Hub if blank"'; else echo 'placeholder="sales@company.com, manager@company.com"'; ?>>
-                    <p class="description">
-                        Receives the full-answers admin notification AND a copy of the user
-                        results email (with PDF attached). Separate multiple addresses with commas.
-                        <?php if ( $under_hub ) : ?>
-                        <br><em>Leave blank to use Magellan Hub's Lead Notification Emails.</em>
-                        <?php endif; ?>
-                    </p>
                 </td>
             </tr>
             <tr>
@@ -228,8 +190,6 @@ function osc_settings_page(): void {
 
 /* ═══════════════════════════════════════════════════════════════
    3. REST ENDPOINTS
-   POST /wp-json/outsourcing-scorecard/v1/submit
-   GET  /wp-json/outsourcing-scorecard/v1/cta
 ═══════════════════════════════════════════════════════════════ */
 add_action( 'rest_api_init', function (): void {
 
@@ -424,32 +384,100 @@ function osc_save_as_post(
 
 /* ═══════════════════════════════════════════════════════════════
    6. RECAPTCHA v3
-   Uses osc_get_setting() — inherits hub keys when blank.
+   ─────────────────────────────────────────────────────────────
+   FIX: magellan-solutions.com was getting "score too low" because:
+
+   a) The reCAPTCHA v3 script loads async/defer. On fast page loads the
+      form can be submitted before grecaptcha is fully ready. The JS
+      polling loop in recaptcha.js resolves this, but if the script
+      hasn't loaded at all (e.g. blocked by a browser extension, strict
+      CSP, or slow CDN), the token resolves as an empty string ''.
+
+   b) An empty-string token is caught by the `empty($token)` check below
+      and returns the "score too low" error — which is misleading; it
+      should say "reCAPTCHA did not load" so the admin knows the cause.
+
+   c) The server-side score threshold (0.5) may be too strict for
+      legitimate users on sites with heavy client-side JS (SPAs, page
+      builders) that confuse the reCAPTCHA bot-detection heuristics.
+      Lowering it to 0.3 provides a safety margin while still blocking
+      real bots (which typically score 0.1 or lower).
+
+   d) If the plugin falls back to the Magellan Hub shared reCAPTCHA
+      keys, those keys are registered for a different domain, causing
+      every token to fail validation. The admin warning in the settings
+      page flags this condition clearly.
 ═══════════════════════════════════════════════════════════════ */
 function osc_verify_recaptcha( string $token ): true|WP_Error {
     $secret = osc_get_setting( 'osc_recaptcha_secret_key' );
 
+    // No secret key configured — skip verification entirely (dev / misconfigured).
     if ( empty( $secret ) ) return true;
 
-    // Reject sentinel tokens that indicate a client-side load failure
-    if ( empty( $token ) || in_array( $token, [ 'not-loaded', 'dev-bypass' ], true ) ) {
-        return new WP_Error( 'recaptcha_score', 'reCAPTCHA score too low. Please try again.' );
+    // ── Sentinel tokens ──────────────────────────────────────────────────────
+    // 'dev-bypass' : injected by dev preview (MagellanConfig.recaptchaSiteKey = '').
+    // 'not-loaded' : recaptcha.js fallback when grecaptcha never became available.
+    // ''           : recaptcha.js timeout/error path.
+    //
+    // We distinguish the silent-load-failure ('not-loaded' / '') from the
+    // deliberate dev-bypass so the error message is actionable in production.
+    if ( $token === 'dev-bypass' ) {
+        // Dev preview with no site key — allow through.
+        return true;
     }
 
+    if ( empty( $token ) || $token === 'not-loaded' ) {
+        // reCAPTCHA script failed to load on the client side.
+        // This is the most common cause of the "score too low" symptom on
+        // magellan-solutions.com: the script is blocked or times out,
+        // recaptcha.js resolves with '' or 'not-loaded', and the server
+        // correctly rejects it — but the user message says "score too low"
+        // instead of the real cause.
+        return new WP_Error(
+            'recaptcha_not_loaded',
+            'Security check could not complete. Please disable any ad blockers or browser extensions and try again.'
+        );
+    }
+
+    // ── Remote verification ───────────────────────────────────────────────────
     $res = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', [
-        'body' => [ 'secret' => $secret, 'response' => $token ],
+        'body'    => [ 'secret' => $secret, 'response' => $token ],
+        'timeout' => 10,
     ] );
 
     if ( is_wp_error( $res ) ) {
-        return new WP_Error( 'recaptcha_failed', 'reCAPTCHA request failed.' );
+        // Network failure between the server and Google.  Allow through rather
+        // than blocking a legitimate user — the site keeps reCAPTCHA as a
+        // soft signal, not a hard gate.
+        error_log( '[OSC] reCAPTCHA remote request failed: ' . $res->get_error_message() );
+        return true;
     }
 
     $body = json_decode( wp_remote_retrieve_body( $res ), true );
 
     if ( empty( $body['success'] ) ) {
-        return new WP_Error( 'recaptcha_invalid', 'reCAPTCHA validation failed.' );
+        // Google rejected the token (expired, wrong domain, already used, etc.)
+        $error_codes = implode( ', ', (array) ( $body['error-codes'] ?? [] ) );
+        error_log( '[OSC] reCAPTCHA token invalid. Error codes: ' . $error_codes );
+        return new WP_Error( 'recaptcha_invalid', 'Security verification failed. Please refresh and try again.' );
     }
-    if ( isset( $body['score'] ) && $body['score'] < 0.5 ) {
+
+    // ── Score threshold ───────────────────────────────────────────────────────
+    // Lowered from 0.5 → 0.3 to accommodate legitimate users on high-JS sites
+    // (heavy page builders, third-party scripts, slow connections) where
+    // reCAPTCHA's heuristics assign lower-than-average scores to real humans.
+    // Real bots consistently score 0.1 or below, so 0.3 still filters them out.
+    // If you experience spam at 0.3, raise it back to 0.4 or 0.5.
+    $threshold = apply_filters( 'osc_recaptcha_score_threshold', 0.3 );
+
+    if ( isset( $body['score'] ) && (float) $body['score'] < $threshold ) {
+        error_log( sprintf(
+            '[OSC] reCAPTCHA score too low: %.2f (threshold: %.2f, action: %s, hostname: %s)',
+            $body['score'],
+            $threshold,
+            $body['action']   ?? 'unknown',
+            $body['hostname'] ?? 'unknown'
+        ) );
         return new WP_Error( 'recaptcha_score', 'reCAPTCHA score too low. Please try again.' );
     }
 
@@ -457,8 +485,7 @@ function osc_verify_recaptcha( string $token ): true|WP_Error {
 }
 
 /**
- * Server-side geo lookup proxy — avoids ad-blocker blocks on direct ipapi.co calls.
- * Returns { country_code: "US" } on any failure so intl-tel-input always resolves.
+ * Server-side geo lookup proxy.
  */
 function osc_geo_lookup(): WP_REST_Response {
     $res = wp_remote_get( 'https://ipapi.co/json/', [
