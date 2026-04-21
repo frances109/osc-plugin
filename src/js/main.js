@@ -47,20 +47,32 @@ import { showPopup }                                       from './popup.js';
 const MG = window.MagellanConfig || {};
 
 // ── intl-tel-input instance (shared across validation + submission) ────────────
-let itiInstance = null;
+let itiInstance    = null;
+let itiInitialised = false;
 
+// Deferred init — called the first time Step 6 becomes visible.
+// intl-tel-input cannot measure flag-widget dimensions on a hidden element,
+// so initialising at document.ready (when all clusters are display:none) leaves
+// the flag area with zero width. We wait until the cluster is shown instead.
 function initPhoneInput() {
+  if (itiInitialised) return;
   const phoneEl = document.getElementById('phone');
   if (!phoneEl || typeof intlTelInput !== 'function') return;
+  itiInitialised = true;
 
   itiInstance = intlTelInput(phoneEl, {
     initialCountry:     'auto',
     separateDialCode:   true,
     preferredCountries: ['us', 'ph', 'au', 'gb'],
     geoIpLookup: cb => {
-      $.getJSON('https://ipapi.co/json')
-        .done(d  => cb(d.country_code))
-        .fail(() => cb('us'));
+      // Use the WP-proxied geo endpoint to avoid ad-blocker blocks on ipapi.co.
+      // A 3 s safety timeout ensures iti always finishes initialising even if
+      // the request is slow or blocked, preventing a hanging init that can also
+      // degrade the reCAPTCHA score.
+      const fallback = setTimeout(() => cb('us'), 3000);
+      $.getJSON(MG.geoUrl || 'https://ipapi.co/json')
+        .done(d  => { clearTimeout(fallback); cb(d.country_code || 'us'); })
+        .fail(()  => { clearTimeout(fallback); cb('us'); });
     },
     utilsScript: MG.itiUtilsUrl
       || 'https://cdn.jsdelivr.net/npm/intl-tel-input@21.1.4/build/js/utils.js',
@@ -185,8 +197,7 @@ $(document).ready(function () {
   state.$clusters.eq(0).show();
   updateNav(state);
 
-  // 3. Phone input
-  initPhoneInput();
+  // 3. Phone input is deferred — initialised on first reveal of Step 6 (see initPhoneInput)
 
   // 4. Landing page transitions
   $('#start-btn').on('click', () => {
@@ -202,7 +213,7 @@ $(document).ready(function () {
 
   // 5. Step navigation
   $('#prevBtn, #prevBtnMobile').on('click', () => goPrev(state));
-  $('#nextBtn, #nextBtnMobile').on('click', () => goNext(state, itiInstance));
+  $('#nextBtn, #nextBtnMobile').on('click', () => goNext(state, itiInstance, initPhoneInput));
 
   // 6. Inline field validation
   wireInlineValidation($('#quizForm'));

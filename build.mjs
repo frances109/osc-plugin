@@ -101,6 +101,12 @@ const itiImg = resolve(NM, 'intl-tel-input/build/img');
 if (existsSync(itiImg)) {
   copyDir(itiImg, resolve(OUT_DIR, 'css/vendor/img'));
   log('  ✓ css/vendor/img/ (intl-tel-input flags)');
+  // intlTelInput.css uses url("../img/flags.png") — relative to its location at
+  // dist/css/vendor/intlTelInput.css that resolves to dist/css/img/, not dist/css/vendor/img/
+  // Copy flags there too so the browser can find them.
+  ensureDir(resolve(OUT_DIR, 'css/img'));
+  copyDir(itiImg, resolve(OUT_DIR, 'css/img'));
+  log('  ✓ css/img/ (intl-tel-input flags — ../img/ path fix)');
 }
 
 // ── 4. JS bundles ─────────────────────────────────────────────────────────────

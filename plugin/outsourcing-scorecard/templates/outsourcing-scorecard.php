@@ -62,7 +62,8 @@ if ( ! $hub_mode ) : ?>
         wpHomeUrl:        <?php echo wp_json_encode( home_url( '/' ) ); ?>,
         itiUtilsUrl:      <?php echo wp_json_encode( $dist . 'js/vendor/utils.js' ); ?>,
         pdfWorkerUrl:     <?php echo wp_json_encode( $dist . 'js/pdf-worker.js' ); ?>,
-        jsPDFUrl:         <?php echo wp_json_encode( $dist . 'js/vendor/jspdf.umd.min.js' ); ?>
+        jsPDFUrl:         <?php echo wp_json_encode( $dist . 'js/vendor/jspdf.umd.min.js' ); ?>,
+        geoUrl:           <?php echo wp_json_encode( $hub_mode ? rest_url( 'magellan/v1/geo' ) : rest_url( 'outsourcing-scorecard/v1/geo' ) ); ?>
     };
     </script>
     <?php if ( $site_key ) : ?>

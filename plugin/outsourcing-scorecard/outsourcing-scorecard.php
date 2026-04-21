@@ -6,7 +6,7 @@
  *               Works standalone OR as a Magellan Hub project (auto-detected).
  *               Completely overrides the active theme — zero theme CSS interference.
  *               All assets loaded from plugin/dist/ (npm packages bundled — no CDN).
- * Version:      1.1.0
+ * Version:      1.1.2
  * Author:       Magellan Solutions
  * License:      GPL-2.0+
  * Text Domain:  outsourcing-scorecard
@@ -136,6 +136,25 @@ function osc_settings_page(): void {
             when left blank below. Page rendering is handled by Magellan Hub.
         </p>
     </div>
+    <?php
+    // Warn when the plugin's own keys are blank and it is falling back to hub keys.
+    // Hub keys are registered for a different domain — using them here will cause
+    // reCAPTCHA to return a low score because the token is validated against the wrong domain.
+    $site_key_raw   = get_option( 'osc_recaptcha_site_key', '' );
+    $secret_key_raw = get_option( 'osc_recaptcha_secret_key', '' );
+    if ( $site_key_raw === '' || $secret_key_raw === '' ) : ?>
+    <div class="notice notice-warning">
+        <p>
+            <strong>&#9888; reCAPTCHA keys not set for this site.</strong>
+            The plugin is currently falling back to Magellan Hub&rsquo;s shared keys,
+            which are registered for a <em>different domain</em>.
+            This will cause <strong>reCAPTCHA score too low</strong> errors on this domain.<br>
+            <strong>Fix:</strong> Enter the site key and secret key registered for
+            <code><?php echo esc_html( wp_parse_url( home_url(), PHP_URL_HOST ) ); ?></code>
+            in the fields below.
+        </p>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 
     <form method="post" action="options.php">
@@ -223,6 +242,12 @@ add_action( 'rest_api_init', function (): void {
     register_rest_route( 'outsourcing-scorecard/v1', '/cta', [
         'methods'             => 'GET',
         'callback'            => 'osc_handle_email_cta',
+        'permission_callback' => '__return_true',
+    ] );
+
+    register_rest_route( 'outsourcing-scorecard/v1', '/geo', [
+        'methods'             => 'GET',
+        'callback'            => 'osc_geo_lookup',
         'permission_callback' => '__return_true',
     ] );
 
@@ -406,8 +431,9 @@ function osc_verify_recaptcha( string $token ): true|WP_Error {
 
     if ( empty( $secret ) ) return true;
 
-    if ( empty( $token ) ) {
-        return new WP_Error( 'recaptcha_missing', 'reCAPTCHA token missing.' );
+    // Reject sentinel tokens that indicate a client-side load failure
+    if ( empty( $token ) || in_array( $token, [ 'not-loaded', 'dev-bypass' ], true ) ) {
+        return new WP_Error( 'recaptcha_score', 'reCAPTCHA score too low. Please try again.' );
     }
 
     $res = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', [
@@ -428,6 +454,24 @@ function osc_verify_recaptcha( string $token ): true|WP_Error {
     }
 
     return true;
+}
+
+/**
+ * Server-side geo lookup proxy — avoids ad-blocker blocks on direct ipapi.co calls.
+ * Returns { country_code: "US" } on any failure so intl-tel-input always resolves.
+ */
+function osc_geo_lookup(): WP_REST_Response {
+    $res = wp_remote_get( 'https://ipapi.co/json/', [
+        'timeout' => 5,
+        'headers' => [ 'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) ],
+    ] );
+    if ( is_wp_error( $res ) ) {
+        return new WP_REST_Response( [ 'country_code' => 'US' ], 200 );
+    }
+    $body = json_decode( wp_remote_retrieve_body( $res ), true );
+    return new WP_REST_Response( [
+        'country_code' => strtoupper( $body['country_code'] ?? 'US' ),
+    ], 200 );
 }
 
 

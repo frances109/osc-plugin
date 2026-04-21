@@ -42,12 +42,14 @@ export function updateNav({ step, $clusters }) {
  * Advance one step if the current cluster is valid.
  * @param {{ step: number, $clusters: JQuery }} state
  * @param {object|null} itiInstance  intl-tel-input instance
+ * @param {Function}    [onStepShow] optional callback fired after the new cluster is shown
  */
-export function goNext(state, itiInstance) {
+export function goNext(state, itiInstance, onStepShow) {
   if (!validateCluster(state.$clusters.eq(state.step), itiInstance)) return;
   state.$clusters.eq(state.step).hide();
   state.step++;
   state.$clusters.eq(state.step).show();
+  if (typeof onStepShow === 'function') onStepShow();
   updateNav(state);
 }
 

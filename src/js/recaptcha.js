@@ -16,21 +16,33 @@
  */
 export function getRecaptchaToken(siteKey) {
   return new Promise(resolve => {
-    if (!siteKey) {
-      resolve('dev-bypass');
+    if (!siteKey) { resolve('dev-bypass'); return; }
+
+    const execute = () => {
+      grecaptcha.ready(() => {
+        grecaptcha
+          .execute(siteKey, { action: 'quiz_submit' })
+          .then(resolve)
+          .catch(() => resolve(''));
+      });
+    };
+
+    if (typeof grecaptcha !== 'undefined') {
+      execute();
       return;
     }
 
-    if (typeof grecaptcha === 'undefined') {
-      resolve('not-loaded');
-      return;
-    }
-
-    grecaptcha.ready(() => {
-      grecaptcha
-        .execute(siteKey, { action: 'quiz_submit' })
-        .then(resolve)
-        .catch(() => resolve(''));
-    });
+    // Wait up to 10s for the reCAPTCHA script to load
+    let elapsed = 0;
+    const interval = setInterval(() => {
+      elapsed += 200;
+      if (typeof grecaptcha !== 'undefined') {
+        clearInterval(interval);
+        execute();
+      } else if (elapsed >= 10000) {
+        clearInterval(interval);
+        resolve(''); // Give up — server will skip if secret unconfigured
+      }
+    }, 200);
   });
 }
