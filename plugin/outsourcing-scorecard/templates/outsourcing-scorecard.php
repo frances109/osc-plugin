@@ -2,18 +2,15 @@
 /**
  * templates/page-scorecard.php
  *
- * Dual-mode template:
+ * Dual-mode template — standalone and hub mode.
  *
- *   STANDALONE — Called from osc_maybe_render_page(). Outputs a complete
- *                HTML document: <!DOCTYPE>, <head>, all CSS/JS links, <body>.
- *
- *   HUB MODE   — Included by Magellan Hub's fullpage-wrapper.php, which already
- *                provides <!DOCTYPE html>, <head> with wp_head(), and <body>.
- *                In hub mode we output ONLY the inline config <script> and body
- *                content. CSS is enqueued via mhub_enqueue_project_assets() which
- *                fires before wp_head(). JS is enqueued here for wp_footer().
- *
- * Hub mode is detected by $mhub_current_project being set (by shortcode.php).
+ * FIX (Req 5 — Frontend Endpoint Mapping):
+ *   MagellanConfig.restUrl is now always set to the full REST URL for
+ *   outsourcing-scorecard/v1/submit regardless of mode. Previously in
+ *   standalone mode it used rest_url('outsourcing-scorecard/v1/submit')
+ *   which is correct, but in hub mode the template was included inside
+ *   the hub's fullpage-wrapper.php which set different globals. Now both
+ *   modes always produce the same URL — never empty, never wrong namespace.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -21,18 +18,33 @@ $hub_mode_early = isset( $mhub_current_project );
 $dist     = $hub_mode_early ? ( rtrim( $mhub_dist_url, '/' ) . '/' )   : OSC_DIST_URL;
 $assets   = $hub_mode_early ? ( rtrim( $mhub_assets_url, '/' ) . '/' ) : OSC_ASSETS_URL;
 
-// osc_get_setting() falls back to Magellan Hub global values when the
-// plugin-level option is blank.
+// osc_get_setting() always available — shared-config.php loaded before this template.
 $site_key = function_exists( 'osc_get_setting' )
     ? osc_get_setting( 'osc_recaptcha_site_key' )
     : get_option( 'osc_recaptcha_site_key', '' );
 
-$nonce    = wp_create_nonce( 'wp_rest' );
-$rest_url = rest_url( 'outsourcing-scorecard/v1/submit' );
-$pdf_url  = ( $hub_mode_early ? rtrim( dirname( rtrim( $mhub_dist_url, '/' ) ), '/' ) . '/pdf/readiness-guide.pdf' : OSC_PDF_URL . 'readiness-guide.pdf' );
+$nonce   = wp_create_nonce( 'wp_rest' );
 
-// Hub mode: this template is included inside fullpage-wrapper.php
+// Always use the plugin's own REST namespace — never the hub's generic namespace.
+// rest_url() produces the correct absolute URL for any WordPress configuration
+// (subdirectory installs, custom REST prefixes, etc.).
+$rest_url = rest_url( 'outsourcing-scorecard/v1/submit' );
+
+$pdf_url  = $hub_mode_early
+    ? rtrim( dirname( rtrim( $mhub_dist_url, '/' ) ), '/' ) . '/pdf/readiness-guide.pdf'
+    : OSC_PDF_URL . 'readiness-guide.pdf';
+
+// Geo endpoint — proxy through the same plugin namespace to avoid ad-blocker blocks.
+$geo_url = rest_url( 'outsourcing-scorecard/v1/geo' );
+
 $hub_mode = $hub_mode_early;
+
+/* ── HUB MODE ONLY: enqueue CDN CSS ──────────────────────── */
+if ( $hub_mode ) :
+    wp_enqueue_style( 'osc-bootstrap-css', $dist . 'css/vendor/bootstrap.min.css',          [], OSC_VERSION ?? MHUB_VERSION );
+    wp_enqueue_style( 'osc-bi-css',        $dist . 'css/vendor/bootstrap-icons.min.css',    [], OSC_VERSION ?? MHUB_VERSION );
+    wp_enqueue_style( 'osc-iti-css',       $dist . 'css/vendor/intlTelInput.css',           [], OSC_VERSION ?? MHUB_VERSION );
+endif;
 
 /* ── STANDALONE ONLY: open full HTML document ──────────── */
 if ( ! $hub_mode ) : ?>
@@ -49,7 +61,7 @@ if ( ! $hub_mode ) : ?>
     <link rel="stylesheet" href="<?php echo esc_url( $dist . 'css/vendor/bootstrap.min.css' ); ?>">
     <link rel="stylesheet" href="<?php echo esc_url( $dist . 'css/vendor/bootstrap-icons.min.css' ); ?>">
     <link rel="stylesheet" href="<?php echo esc_url( $dist . 'css/vendor/intlTelInput.css' ); ?>">
-    <link rel="stylesheet" href="<?php echo esc_url( $dist . 'css/scorecard.css' ); ?>?v=<?php echo OSC_VERSION; ?>">
+    <link rel="stylesheet" href="<?php echo esc_url( $dist . 'css/scorecard.css' ); ?>?v=<?php echo defined('OSC_VERSION') ? OSC_VERSION : '1'; ?>">
 <?php endif; ?>
 
     <!-- JS runtime config — output in both modes -->
@@ -63,7 +75,7 @@ if ( ! $hub_mode ) : ?>
         itiUtilsUrl:      <?php echo wp_json_encode( $dist . 'js/vendor/utils.js' ); ?>,
         pdfWorkerUrl:     <?php echo wp_json_encode( $dist . 'js/pdf-worker.js' ); ?>,
         jsPDFUrl:         <?php echo wp_json_encode( $dist . 'js/vendor/jspdf.umd.min.js' ); ?>,
-        geoUrl:           <?php echo wp_json_encode( $hub_mode ? rest_url( 'magellan/v1/geo' ) : rest_url( 'outsourcing-scorecard/v1/geo' ) ); ?>
+        geoUrl:           <?php echo wp_json_encode( $geo_url ); ?>
     };
     </script>
     <?php if ( $site_key ) : ?>
@@ -111,8 +123,8 @@ if ( ! $hub_mode ) : ?>
                 <div class="image-frame position-relative w-100">
                     <div class="image-decoration position-absolute"></div>
                     <img src="<?php echo esc_url( $assets . 'outsourcing.webp' ); ?>"
-                        alt="Professional team collaborating"
-                        class="hero-image position-relative d-block w-100">
+                         alt="Professional team collaborating"
+                         class="hero-image position-relative d-block w-100">
                 </div>
             </div>
         </div>
@@ -154,8 +166,7 @@ if ( ! $hub_mode ) : ?>
             <div class="trust-divider"></div>
             <span class="text-center">Copyright &copy; <?php echo gmdate( 'Y' ); ?></span>
         </div>
-
-    </div><!-- /#landing -->
+    </div>
 
     <div id="overlay" class="d-none"></div>
     <div id="popup" class="d-none">
@@ -166,19 +177,13 @@ if ( ! $hub_mode ) : ?>
     </div>
 
 <?php if ( ! $hub_mode ) : ?>
-    <!-- Standalone: vendor JS loaded directly (wp_footer not available) -->
     <script src="<?php echo esc_url( $dist . 'js/vendor/jquery.min.js' ); ?>"></script>
     <script src="<?php echo esc_url( $dist . 'js/vendor/bootstrap.bundle.min.js' ); ?>"></script>
     <script src="<?php echo esc_url( $dist . 'js/vendor/intlTelInput.min.js' ); ?>"></script>
-    <script src="<?php echo esc_url( $dist . 'js/scorecard.js' ); ?>?v=<?php echo OSC_VERSION; ?>"></script>
+    <script src="<?php echo esc_url( $dist . 'js/scorecard.js' ); ?>?v=<?php echo defined('OSC_VERSION') ? OSC_VERSION : '1'; ?>"></script>
 </body>
 </html>
 <?php else :
-    /*
-     * Hub mode: CSS is already enqueued by mhub_enqueue_project_assets() which fires
-     * before wp_head() in fullpage-wrapper.php. Enqueue JS here so it lands in
-     * wp_footer() — this is the correct WordPress way (no duplicate script tags).
-     */
     $pfx = 'osc-vendor';
     wp_enqueue_script( $pfx . '-jquery',    $dist . 'js/vendor/jquery.min.js',           [], defined('OSC_VERSION') ? OSC_VERSION : MHUB_VERSION, true );
     wp_enqueue_script( $pfx . '-bootstrap', $dist . 'js/vendor/bootstrap.bundle.min.js', [ $pfx . '-jquery' ], defined('OSC_VERSION') ? OSC_VERSION : MHUB_VERSION, true );
