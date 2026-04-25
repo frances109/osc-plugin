@@ -6,7 +6,7 @@
  *               Works standalone OR as a Magellan Hub project (auto-detected).
  *               Completely overrides the active theme — zero theme CSS interference.
  *               All assets loaded from plugin/dist/ (npm packages bundled — no CDN).
- * Version:      1.2.0
+ * Version:      1.1.4
  * Author:       Magellan Solutions
  * License:      GPL-2.0+
  * Text Domain:  outsourcing-scorecard
@@ -14,7 +14,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'OSC_VERSION',    '1.2.0' );
+define( 'OSC_VERSION',    '1.1.4' );
 define( 'OSC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OSC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'OSC_DIST_URL',   OSC_PLUGIN_URL . 'dist/' );
@@ -53,7 +53,7 @@ function osc_maybe_render_page(): void {
     if ( ! is_page( $slug ) ) return;
 
     while ( ob_get_level() ) ob_end_clean();
-    include OSC_PLUGIN_DIR . 'templates/page-scorecard.php';
+    include OSC_PLUGIN_DIR . 'templates/outsourcing-scorecard.php';
     exit;
 }
 

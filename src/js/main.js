@@ -18,7 +18,7 @@
  *   download.js      downloadReadinessGuide
  *   popup.js         showPopup
  *
- * window.MagellanConfig is injected by page-scorecard.php before this script loads:
+ * window.MagellanConfig is injected by outsourcing-scorecard.php before this script loads:
  *   restUrl          — /wp-json/outsourcing-scorecard/v1/submit
  *   nonce            — wp_rest nonce
  *   recaptchaSiteKey — reCAPTCHA v3 site key (empty = skip)

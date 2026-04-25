@@ -5,7 +5,7 @@
  * Loaded after jQuery, Bootstrap, and intl-tel-input via <script> tags in the PHP template.
  * jsPDF UMD is prepended to this file by build.mjs, setting window.jspdf before this IIFE runs.
  *
- * window.MagellanConfig is injected by page-scorecard.php:
+ * window.MagellanConfig is injected by outsourcing-scorecard.php before this script loads:
  *   restUrl          — /wp-json/outsourcing-scorecard/v1/submit
  *   nonce            — wp_rest nonce
  *   recaptchaSiteKey — reCAPTCHA v3 site key (empty string = skip in dev)

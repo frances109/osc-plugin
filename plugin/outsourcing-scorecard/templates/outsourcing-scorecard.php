@@ -1,16 +1,6 @@
 <?php
 /**
- * templates/page-scorecard.php
- *
- * Dual-mode template — standalone and hub mode.
- *
- * FIX (Req 5 — Frontend Endpoint Mapping):
- *   MagellanConfig.restUrl is now always set to the full REST URL for
- *   outsourcing-scorecard/v1/submit regardless of mode. Previously in
- *   standalone mode it used rest_url('outsourcing-scorecard/v1/submit')
- *   which is correct, but in hub mode the template was included inside
- *   the hub's fullpage-wrapper.php which set different globals. Now both
- *   modes always produce the same URL — never empty, never wrong namespace.
+ * templates/outsourcing-scorecard.php
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
