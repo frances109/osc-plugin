@@ -83,7 +83,7 @@ if ( ! $hub_mode ) : ?>
 
         <nav class="landing-nav d-flex align-items-center justify-content-between px-4 px-lg-5 py-4 position-relative" style="z-index:2">
             <span class="nav-logo">
-                <img src="<?php echo esc_url( $assets . 'logo.webp' ); ?>" alt="Magellan Solutions Logo" width="300">
+                <img src="<?php echo esc_url( $assets . 'logo.webp' ); ?>" alt="Magellan Solutions Logo" width="220">
             </span>
             <ul class="nav-social d-flex gap-4 list-unstyled mb-0">
                 <li><a href="https://www.facebook.com/magellanbpo"       target="_blank" rel="noopener" aria-label="Facebook"><i class="bi bi-facebook"></i></a></li>

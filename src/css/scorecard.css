@@ -137,7 +137,7 @@ body {
     letter-spacing: -0.01em;
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
     box-shadow: 0 8px 32px rgba(42, 172, 232, 0.35);
-    margin-bottom: 16px;
+    /* margin-bottom: 16px; */
 }
 
 .cta-btn:hover {
@@ -646,11 +646,6 @@ body {
     }
     .trust-divider { display: none; }
 
-    .landing-headline { font-size: clamp(1.9rem, 6vw, 2.6rem); }
-    .landing-sub      { font-size: 0.95rem; max-width: 100%; }
-    .nav-logo img     { width: 200px; }
-    .hero-image       { height: 320px; }
-
     /* Bottom nav: space-between so arrows sit at each side of back-btn */
     .quiz-bottom-nav {
         justify-content: space-between;
@@ -746,6 +741,18 @@ body {
 
 @media (max-width: 1599px) and (max-height: 849px) {
 
+    .landing-headline { font-size: clamp(1.9rem, 6vw, 2.6rem); }
+    .landing-sub      { font-size: 0.85rem; max-width: 100%; }
+    .nav-logo img     { width: 200px; }
+    .hero-image       { height: 380px; }
+
+    .image-decoration { width: 100%; height: 100%;}
+
+    .cta-btn {
+        font-size: 0.85rem;
+        padding: 14px 28px;
+    }
+    
     /* Shrink the quiz wrapper vertical margin */
     #quizWrapper {
         margin: 20px 0;
